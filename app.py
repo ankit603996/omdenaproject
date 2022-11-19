@@ -17,9 +17,9 @@ from chart_studio import plotly
 import os
 import io,base64
 ### Setup ###################################################
-app = dash.Dash(__name__, external_stylesheets=[dbc.themes.BOOTSTRAP])
-app.title = 'Machine Learning Model Deployment'
-server = app.server
+dash_app = dash.Dash(__name__, external_stylesheets=[dbc.themes.BOOTSTRAP])
+dash_app.title = 'Machine Learning Model Deployment'
+app = dash_app.server
 
 ### load ML model ###########################################
 with open('xgb_model.pkl', 'rb') as f:
@@ -28,7 +28,7 @@ with open('xgb_model.pkl', 'rb') as f:
 with open('explainer', 'rb') as f:
     explainer = dill.load(f)
 ### App Layout ###############################################
-app.layout = html.Div([
+dash_app.layout = html.Div([
     html.H1("MobileUurka Risk Prediction Model", style={'textAlign':'center'}),
     html.Br(),
     html.Br(),
@@ -75,7 +75,7 @@ def parse_contents(contents, filename, date):
     return df
 
 ### Callback to produce the prediction #########################
-@app.callback(
+@dash_app.callback(
     Output('prediction output', 'children'),
     Input('upload-data', 'contents'),
               State('upload-data', 'filename'),
@@ -118,4 +118,4 @@ def update_output(list_of_contents, list_of_names, list_of_dates,n_click):
 
 ### Run the App ###############################################
 if __name__ == '__main__':
-    app.run_server(debug=True, threaded=True)
+    dash_app.run_server(debug=True)

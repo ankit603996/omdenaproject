@@ -60,4 +60,4 @@ jobs:
         with:
           app-name: 'OmdenaApp1'
           slot-name: 'Production'
-          publish-profile: ${{ secrets.AZUREAPPSERVICE_PUBLISHPROFILE_CEF9D1EE7629489E8B2A8747703143E0 }}
+          publish-profile: ${{ secrets.AZUREAPPSERVICE_PUBLISHPROFILE_7FE6C379A1924771B0392B0115C7C8EF }}

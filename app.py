@@ -56,13 +56,13 @@ dash_app.layout = html.Div([
                 # Allow multiple files to be uploaded
                 multiple=True
             )]),
-        dbc.Row([html.Div(id='prediction output')]),
         dbc.Row([
             html.Div(id='output-data-upload')
         ]),
         html.Br(),
         html.Br(),
         dbc.Button('Submit', id='submit-val', n_clicks=0, color="primary"),
+        dbc.Row([html.Div(id='prediction output')]),
         html.Br(),
         ])
 ])
@@ -96,6 +96,8 @@ def update_output(list_of_contents, list_of_names, list_of_dates,n_click):
         prediction_batch['patient_id'] = range(len(df))
         prediction_batch = prediction_batch[['patient_id','prob for high risk', 'prob for medium risk', 'prob for low risk']]
         print(prediction_batch)
+    else:
+        return html.H3("Please provide inputs above")
 
     fig = px.histogram(prediction_batch['prob for high risk'], x="prob for high risk", histnorm='probability density')
 

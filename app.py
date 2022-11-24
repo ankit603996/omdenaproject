@@ -1,4 +1,3 @@
-# Dash_App.py
 ### Import Packages ########################################
 import os
 import plotly.express as px

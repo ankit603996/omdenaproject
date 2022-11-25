@@ -1,5 +1,4 @@
 ### Import Packages ########################################
-import os
 import plotly.express as px
 import pandas as pd
 import dash

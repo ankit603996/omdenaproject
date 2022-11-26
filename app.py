@@ -15,17 +15,27 @@ import dill
 from chart_studio import plotly
 import os
 import io,base64
+
+import requests
+
+def create_tf_serving_json(data):
+    return [{'inputs': {name: data[name] for name in data.keys()} if isinstance(data, dict) else data.tolist()}['inputs']]
+
+
+def score_model(data):
+    url = 'https://adb-1892098852338246.6.azuredatabricks.net/model/Omdena2/2/invocations'
+    headers = {'Authorization': f'Bearer dapicd59a55031a134e2c1787e88043f540d'}
+    data = {"dataframe_split": data.to_dict(orient='split')}
+    response = requests.request(method='POST', headers=headers, url=url, json=data)
+    if response.status_code != 200:
+        raise Exception(f'Request failed with status {response.status_code}, {response.text}')
+    return response.json()
+
 ### Setup ###################################################
 dash_app = dash.Dash(__name__,prevent_initial_callbacks=True, external_stylesheets=[dbc.themes.BOOTSTRAP])
 dash_app.title = 'Machine Learning Model Deployment'
 app = dash_app.server
 
-### load ML model ###########################################
-with open('xgb_model.pkl', 'rb') as f:
-    clf = pickle.load(f)
-### load explainer ###########################################
-with open('explainer', 'rb') as f:
-    explainer = dill.load(f)
 ### App Layout ###############################################
 dash_app.layout = html.Div([
     html.H1("MobileUurka Risk Prediction Model", style={'textAlign':'center'}),
@@ -139,20 +149,18 @@ def update_output(list_of_contents, list_of_names, list_of_dates):
         df_list = [parse_contents(c, n, d) for c, n, d in
             zip(list_of_contents, list_of_names, list_of_dates)]
         df = df_list[0]
-        print("df type",type(df))
-        print("df shape", df.shape)
         data = df.copy()
-        prediction_batch = pd.DataFrame(clf.predict_proba(data))
-        prediction_batch.columns = ['prob for high risk', 'prob for medium risk', 'prob for low risk']
+        prediction_batch = pd.DataFrame(score_model(data))
+        prediction_batch.columns = ['ML_Prediction']
+        conditions = [prediction_batch['ML_Prediction']==0,prediction_batch['ML_Prediction']==1]
+        choices = ['Low','Medium']
+        prediction_batch['Risk'] = np.select(conditions,choices,"High")
         prediction_batch['patient_id'] = range(len(df))
-        prediction_batch = prediction_batch[['patient_id','prob for high risk', 'prob for medium risk', 'prob for low risk']]
+        prediction_batch = prediction_batch[['patient_id','Risk']]
         print(prediction_batch)
     else:
         return html.H3("Please provide inputs above")
 
-    fig = px.histogram(prediction_batch['prob for high risk'], x="prob for high risk", histnorm='probability density')
-
-    # compute SHAP values
     output = html.Div([html.H3("Probability for high risk mortality"),
                        html.Br(),
                        dt.DataTable(prediction_batch.to_dict('records'),
@@ -164,7 +172,6 @@ def update_output(list_of_contents, list_of_names, list_of_dates):
                                         'fontWeight': 'bold'
                                     }
                                     ),
-                       dcc.Graph(figure=fig)
                        ])
     return output
 
@@ -179,57 +186,23 @@ def update_output(list_of_contents, list_of_names, list_of_dates):
 def update_output(n_clicks, Age, SystolicBP, DiastolicBP, BS):
     df_x = pd.DataFrame({'Age':[Age],'SystolicBP':[SystolicBP],
                          'DiastolicBP':[DiastolicBP],'BS':[BS]})
-    prediction = clf.predict(df_x)[0]
+    prediction = score_model(df_x)
+    print(prediction)
+    prediction = prediction['predictions'][0]
+    print(prediction)
     # compute SHAP values
 
-    exp = explainer.explain_instance(df_x.values[0], clf.predict_proba , num_features=4)
-    exp_df = pd.DataFrame(exp.as_list())
-    exp_df.columns = ["Feature falling under rule","Impact_Amount"]
-    exp_df['Impact'] = np.where(exp_df.Impact_Amount>0,"Positive_Imapct","Negative_Impact")
     if prediction == 0:
         output = html.Div([html.H3("Mortality risk is low for patient"),
                            html.Br(),
-                           html.H5("Explaination for prediction"),
-                           dt.DataTable(exp_df.to_dict('records'),
-                                        [{"name": i, "id": i} for i in exp_df.columns],
-                                        id='tbl', fixed_columns={'headers': True, 'data': 1},
-                                        style_table={'minWidth': '100%'}, style_cell={'textAlign': 'left'},
-                                        style_cell_conditional=[
-                                            {
-                                                'if': {'column_id': 'Region'},
-                                                'textAlign': 'left'
-                                            }
-                                        ])
                            ])
     elif prediction == 1:
         output = html.Div([html.H3("Mortality risk is moderate for patient"),
                            html.Br(),
-                           html.H5("Explaination for prediction"),
-                           dt.DataTable(exp_df.to_dict('records'),
-                                        [{"name": i, "id": i} for i in exp_df.columns],
-                                        id='tbl', fixed_columns={'headers': True, 'data': 1},
-                                        style_table={'minWidth': '100%'}, style_cell={'textAlign': 'left'},
-                                        style_cell_conditional=[
-                                            {
-                                                'if': {'column_id': 'Region'},
-                                                'textAlign': 'left'
-                                            }
-                                        ])
                            ])
     else:
         output = html.Div([html.H3("Mortality risk is High for patient"),
                            html.Br(),
-                           html.H5("Explaination for prediction"),
-                           dt.DataTable(exp_df.to_dict('records'),
-                                        [{"name": i, "id": i} for i in exp_df.columns],
-                                        id='tbl', fixed_columns={'headers': True, 'data': 1},
-                                        style_table={'minWidth': '100%'},    style_cell={'textAlign': 'left'},
-                                        style_cell_conditional=[
-                                            {
-                                                'if': {'column_id': 'Region'},
-                                                'textAlign': 'left'
-                                            }
-                                            ])
                            ])
     return output
 ### Run the App ###############################################

@@ -27,7 +27,7 @@ with open('explainer', 'rb') as f:
     explainer = dill.load(f)
 ### App Layout ###############################################
 dash_app.layout = html.Div([
-    html.H1("MobileUurka Risk Prediction Model", style={'textAlign':'center'}),
+    html.H1("Omdena: MobileUurka Risk Prediction Model", style={'textAlign':'center'}),
     html.Br(),
     html.Br(),
     html.Div([
